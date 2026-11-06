@@ -2,7 +2,7 @@ name: Build desktop installers
 
 on:
   push:
-    branches: [main, feature/bug-hunter-desktop-installer, feature/bug-hunter-v2-security-suite, fix/windows-installer-updater]
+    branches: [main, feature/bug-hunter-desktop-installer, feature/bug-hunter-v2-security-suite, fix/windows-installer-updater, fix/windows-startup-diagnostics]
     paths:
       - "02-batman-bug-hunter/**"
       - ".github/workflows/bug-hunter-desktop.yml"
@@ -64,18 +64,37 @@ jobs:
           $updaterExe = Join-Path $installDir "BatmanBugHunterUpdater.exe"
           if (-not (Test-Path $appExe -PathType Leaf)) { throw "Installed application executable is missing." }
           if (-not (Test-Path $updaterExe -PathType Leaf)) { throw "Installed updater executable is missing." }
-          $app = Start-Process -FilePath $appExe -ArgumentList "--browser" -PassThru
+          $stdout = Join-Path $env:RUNNER_TEMP "BatmanBugHunter.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "BatmanBugHunter.stderr.log"
+          $app = Start-Process -FilePath $appExe -ArgumentList "--browser" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           try {
             $ready = $false
+            $lastFailure = "No HTTP response received."
             for ($i = 0; $i -lt 30; $i++) {
               Start-Sleep -Seconds 2
+              if ($app.HasExited) {
+                $app.Refresh()
+                $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "(empty)" }
+                $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "(empty)" }
+                throw "Installed app exited early with code $($app.ExitCode). STDOUT: $outText STDERR: $errText"
+              }
               try {
-                $home = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 3
+                $dashboardResponse = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 3
                 $crypto = Invoke-WebRequest -Uri "http://127.0.0.1:5000/crypto" -UseBasicParsing -TimeoutSec 3
-                if ($home.StatusCode -eq 200 -and $crypto.StatusCode -eq 200) { $ready = $true; break }
-              } catch {}
+                if ($dashboardResponse.StatusCode -eq 200 -and $crypto.StatusCode -eq 200) { $ready = $true; break }
+                $lastFailure = "HTTP status: dashboard=$($dashboardResponse.StatusCode), crypto=$($crypto.StatusCode)"
+              } catch {
+                $lastFailure = $_.Exception.Message
+                if ($_.Exception.Response) {
+                  try { $lastFailure += " | HTTP status: $([int]$_.Exception.Response.StatusCode)" } catch {}
+                }
+              }
             }
-            if (-not $ready) { throw "Installed application did not serve the dashboard and Crypto Lab." }
+            if (-not $ready) {
+              $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "(empty)" }
+              $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "(empty)" }
+              throw "Installed app did not become healthy. Last check: $lastFailure. STDOUT: $outText STDERR: $errText"
+            }
           } finally {
             if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
             $uninstaller = Join-Path $installDir "unins000.exe"
