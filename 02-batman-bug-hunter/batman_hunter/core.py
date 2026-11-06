@@ -204,10 +204,10 @@ def scan_target(url: str, allow_private: bool = False, active: bool = False) -> 
             except Exception:
                 body = ""
             import re
-            forms = re.findall(r"<form\\b[^>]*>.*?</form\\s*>", body, flags=re.I | re.S)
+            forms = re.findall(r"<form\b[^>]*>.*?</form\s*>", body, flags=re.I | re.S)
             for form in forms:
-                if re.search(r'type\\s*=\\s*["\\']?password', form, flags=re.I):
-                    action = re.search(r'action\\s*=\\s*["\\']([^"\\']*)', form, flags=re.I)
+                if re.search(r"type\s*=\s*['"]?password", form, flags=re.I):
+                    action = re.search(r"action\s*=\s*['"]([^'"]*)", form, flags=re.I)
                     action_url = urljoin(final_url, action.group(1)) if action else final_url
                     if urlparse(action_url).scheme != "https":
                         _add(findings, "Password form may submit over HTTP", "High", "Forms",
