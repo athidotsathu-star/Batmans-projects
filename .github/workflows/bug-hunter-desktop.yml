@@ -2,7 +2,7 @@ name: Build desktop installers
 
 on:
   push:
-    branches: [main, feature/bug-hunter-desktop-installer, feature/bug-hunter-v2-security-suite, fix/windows-installer-updater]
+    branches: [main, feature/bug-hunter-desktop-installer, feature/bug-hunter-v2-security-suite, fix/windows-installer-updater, fix/windows-startup-diagnostics]
     paths:
       - "02-batman-bug-hunter/**"
       - ".github/workflows/bug-hunter-desktop.yml"
