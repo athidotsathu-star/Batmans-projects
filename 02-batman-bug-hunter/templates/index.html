@@ -45,6 +45,33 @@
       <div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="shield">B</div><span class="art-cross cross-one">+</span><span class="art-cross cross-two">+</span></div>
     </section>
 
+ 
+    <section class="soc-overview" aria-label="Security operations overview">
+      <div class="soc-heading"><div><div class="section-kicker">LIVE OPERATIONS / 00</div><h2>Security command centre</h2><p>Operational visibility from this Bug Hunter instance. Metrics update after each completed assessment.</p></div><div class="soc-engine"><i></i><span id="engine-state">CHECKING ENGINE</span><small id="last-refresh">CONNECTING</small></div></div>
+      <div class="soc-kpis">
+        <article class="soc-kpi"><div class="kpi-label">SECURITY ENGINE <span>01</span></div><strong id="kpi-engine">ONLINE</strong><small>Local application health</small></article>
+        <article class="soc-kpi"><div class="kpi-label">TOTAL FINDINGS <span>02</span></div><strong id="kpi-findings">0</strong><small>From latest assessment</small></article>
+        <article class="soc-kpi"><div class="kpi-label">HIGH PRIORITY <span>03</span></div><strong class="gold-text" id="kpi-high">0</strong><small>High severity observations</small></article>
+        <article class="soc-kpi"><div class="kpi-label">OPEN PORTS <span>04</span></div><strong id="kpi-ports">—</strong><small>Latest network reconnaissance</small></article>
+      </div>
+      <div class="soc-grid">
+        <article class="soc-panel severity-panel"><div class="soc-panel-head"><div><span class="section-kicker">THREAT LANDSCAPE / 01</span><h3>Severity distribution</h3></div><span class="soc-tag">LATEST RUN</span></div>
+          <div class="severity-bars">
+            <div class="severity-row"><span class="sev-name critical">CRITICAL</span><div class="sev-track"><i id="bar-critical"></i></div><b id="sev-critical">0</b></div>
+            <div class="severity-row"><span class="sev-name high">HIGH</span><div class="sev-track"><i id="bar-high"></i></div><b id="sev-high">0</b></div>
+            <div class="severity-row"><span class="sev-name medium">MEDIUM</span><div class="sev-track"><i id="bar-medium"></i></div><b id="sev-medium">0</b></div>
+            <div class="severity-row"><span class="sev-name low">LOW</span><div class="sev-track"><i id="bar-low"></i></div><b id="sev-low">0</b></div>
+            <div class="severity-row"><span class="sev-name info">INFO</span><div class="sev-track"><i id="bar-info"></i></div><b id="sev-info">0</b></div>
+          </div><p class="soc-footnote" id="severity-note">No assessment data yet. Run a scan to populate severity intelligence.</p>
+        </article>
+        <article class="soc-panel network-panel"><div class="soc-panel-head"><div><span class="section-kicker">NETWORK INTELLIGENCE / 02</span><h3>Network overview</h3></div><span class="soc-tag">LAST RECON</span></div>
+          <div class="network-visual"><div class="network-node node-core"><span>BBH</span><small>CONSOLE</small></div><div class="network-lines"><i></i><i></i><i></i></div><div class="network-node node-target"><span id="network-target">—</span><small>LAST TARGET</small></div></div>
+          <div class="network-stats"><div><small>DISCOVERED OPEN PORTS</small><strong id="network-open">—</strong></div><div><small>LAST NETWORK OPERATION</small><strong id="network-operation">NONE</strong></div></div><p class="soc-footnote">This panel reports the latest recorded Nmap/reconnaissance result. It does not passively monitor traffic.</p>
+        </article>
+        <article class="soc-panel activity-panel"><div class="soc-panel-head"><div><span class="section-kicker">OPERATIONAL LOG / 03</span><h3>Recent scan activity</h3></div><span class="soc-tag">LOCAL HISTORY</span></div><div id="activity-list" class="activity-list"><div class="activity-empty">No completed operations recorded in this session.</div></div></article>
+      </div>
+    </section>
+
     {% if error %}
     <section class="alert" role="alert"><span class="alert-mark">!</span><div><strong>Assessment could not start</strong><p>{{ error }}</p></div></section>
     {% endif %}
@@ -125,5 +152,28 @@
   </main>
 </div>
 {% if report %}<script>document.getElementById("results").scrollIntoView({behavior:"smooth",block:"start"});</script>{% endif %}
+<script>
+(async function refreshCommandCentre(){
+ const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
+ const levels=["critical","high","medium","low","info"];
+ try{
+  const response=await fetch("/api/dashboard",{cache:"no-store"});
+  if(!response.ok) throw new Error("API unavailable");
+  const data=await response.json();
+  set("engine-state","ENGINE ONLINE");set("kpi-engine","ONLINE");set("last-refresh","UPDATED "+new Date().toLocaleTimeString());
+  set("kpi-findings",data.total_findings);set("kpi-high",data.severity.high+data.severity.critical);
+  set("kpi-ports",data.network.open_ports===null?"—":data.network.open_ports);
+  const max=Math.max(1,...levels.map(k=>data.severity[k]));
+  levels.forEach(k=>{set("sev-"+k,data.severity[k]);const bar=document.getElementById("bar-"+k);if(bar)bar.style.width=(data.severity[k]/max*100)+"%"});
+  set("severity-note",data.has_assessment?"Counts reflect the latest completed operation.":"No assessment data yet. Run a scan to populate severity intelligence.");
+  set("network-target",data.network.target||"—");set("network-open",data.network.open_ports===null?"—":data.network.open_ports);set("network-operation",data.network.operation||"NONE");
+  const list=document.getElementById("activity-list");
+  if(data.history.length){list.innerHTML=data.history.map(item=>'<div class="activity-item"><span class="activity-mark"></span><div><strong>'+escapeHtml(item.title)+'</strong><small>'+escapeHtml(item.time)+' · '+escapeHtml(item.target||"Local operation")+'</small></div><b>'+item.findings+' FINDINGS</b></div>').join("")}
+  set("kpi-engine","ONLINE");
+ }catch(e){set("engine-state","ENGINE UNAVAILABLE");set("kpi-engine","OFFLINE");set("last-refresh","API CHECK FAILED")}
+ function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+}
+refreshCommandCentre();setInterval(refreshCommandCentre,15000);
+</script>
 </body>
 </html>

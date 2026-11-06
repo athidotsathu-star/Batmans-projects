@@ -17,6 +17,7 @@ from .versioning import version_info, check_latest
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
 _latest_report = {"title":"Batman Bug Hunter X","summary":{"Status":"No operation completed yet"},"details":[],"notes":"Run a module to populate this report."}
+_scan_history = []
 
 def _remember(title, summary, details, notes=""):
     global _latest_report
@@ -24,6 +25,8 @@ def _remember(title, summary, details, notes=""):
     risk = score_findings(details)
     summary = {**summary, "Risk points (BBH heuristic)":risk["total_risk_points"], "Highest priority":risk["highest_priority"]}
     _latest_report={"title":title,"summary":summary,"details":risk["prioritized_findings"],"notes":notes + "\n\n" + risk["guidance"]}
+    _scan_history.insert(0, {"title":title, "time":__import__("datetime").datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z"), "target":str(summary.get("Target", "")), "findings":len(risk["prioritized_findings"])})
+    del _scan_history[20:]
 
 @app.get("/")
 def index():
@@ -146,6 +149,32 @@ def download_report():
 def download_html_report():
     content=build_html(_latest_report["title"],_latest_report["summary"],_latest_report["details"],_latest_report["notes"])
     return Response(content,mimetype="text/html",headers={"Content-Disposition":"attachment; filename=Batman-Bug-Hunter-Investigation.html"})
+
+@app.get("/api/dashboard")
+def api_dashboard():
+    """Return real application health and latest in-memory assessment telemetry."""
+    details = _latest_report.get("details", [])
+    severity = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+    for item in details:
+        level = str(item.get("severity", "info")).lower()
+        if level in severity:
+            severity[level] += 1
+    summary = _latest_report.get("summary", {})
+    title = _latest_report.get("title", "")
+    is_network = "network" in title.lower() or "nmap" in title.lower()
+    open_ports = summary.get("Open ports") if is_network else None
+    return jsonify({
+        "engine": "online",
+        "has_assessment": bool(_scan_history),
+        "total_findings": sum(severity.values()),
+        "severity": severity,
+        "network": {
+            "target": str(summary.get("Target", "")) if is_network else "",
+            "open_ports": open_ports,
+            "operation": title if is_network else ""
+        },
+        "history": list(_scan_history)
+    })
 
 @app.get("/api/version")
 def api_version():
