@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#080806"><title>BATCOMPUTER // CRYPTO LAB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+<aside class="sidebar">
+<a class="brand" href="/"><span class="brand-mark">B<span>.</span></span><span class="brand-copy"><strong>BATCOMPUTER</strong><small>BUG HUNTER X <i>v3.0</i></small></span></a>
+<div class="side-label">SYSTEM MODULES</div>
+<a class="nav-item" href="/">⌕ &nbsp; COMMAND CENTER</a>
+<a class="nav-item" href="/#scan">◎ &nbsp; WEB INTELLIGENCE</a>
+<a class="nav-item active" href="/crypto">⌘ &nbsp; CRYPTO LAB</a>
+<div class="sidebar-bottom"><div class="scope-card"><span class="scope-icon">◆</span><strong>LOCAL ENCRYPTION</strong><p>Cryptographic operations run on this machine. Never share your passphrase.</p></div><div class="version-line"><span class="live-dot"></span> LOCAL CONSOLE <span class="version">BUILD 3.0</span></div></div>
+</aside>
+<main class="main">
+<header class="topbar"><div class="breadcrumb">BATCOMPUTER <span>/</span> <strong>CRYPTO LAB</strong></div><div class="top-status"><span class="live-dot"></span> CRYPTO ENGINE READY <span class="top-divider"></span><span class="local-label">LOCALHOST</span></div></header>
+<section class="hero"><div class="hero-copy"><div class="eyebrow"><span></span> CRYPTOGRAPHIC OPERATIONS // MODULE 07</div><h1>Protect the data.<br><em>Control the keys.</em></h1><p>Authenticated text encryption, decryption, integrity hashing and secure password generation.</p></div><div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="shield">⌘</div><span class="art-cross cross-one">+</span><span class="art-cross cross-two">+</span></div></section>
+{% if error %}<section class="alert" role="alert"><span class="alert-mark">!</span><div><strong>OPERATION FAILED</strong><p>{{ error }}</p></div></section>{% endif %}
+<section class="workspace-grid crypto-grid">
+<section class="panel scan-panel"><div class="panel-heading"><div><div class="section-kicker">01 / DATA PROTECTION</div><h2>Encrypt / decrypt</h2><p>AES-256-GCM authenticated encryption with PBKDF2-SHA256 key derivation.</p></div><span class="panel-icon">⌘</span></div>
+<div class="crypto-tabs"><a href="#encrypt">ENCRYPT</a><a href="#decrypt">DECRYPT</a></div>
+<form method="post" action="/crypto#output" id="encrypt"><input type="hidden" name="mode" value="encrypt"><label for="plaintext">PLAINTEXT INPUT</label><textarea id="plaintext" name="plaintext" rows="5" placeholder="Enter sensitive text to encrypt..." required></textarea><label for="enc-pass">PASSPHRASE (12+ CHARACTERS)</label><input id="enc-pass" name="passphrase" type="password" minlength="12" autocomplete="new-password" required><button class="scan-button" type="submit"><span>ENCRYPT DATA</span><b>→</b></button></form>
+<form method="post" action="/crypto#output" id="decrypt" class="crypto-form-secondary"><input type="hidden" name="mode" value="decrypt"><label for="ciphertext">BBH1 ENCRYPTED PAYLOAD</label><textarea id="ciphertext" name="ciphertext" rows="5" placeholder="Paste BBH1 encrypted payload..." required></textarea><label for="dec-pass">PASSPHRASE</label><input id="dec-pass" name="passphrase" type="password" minlength="12" autocomplete="current-password" required><button class="scan-button" type="submit"><span>DECRYPT DATA</span><b>→</b></button></form>
+</section>
+<aside class="panel info-panel"><div class="section-kicker">02 / UTILITIES</div><h2>Integrity & credentials</h2>
+<form method="post" action="/crypto#output" class="utility-form"><input type="hidden" name="mode" value="hash"><label for="hash-input">SHA-256 HASH GENERATOR</label><textarea id="hash-input" name="hash_input" rows="3" placeholder="Text to fingerprint..." required></textarea><button class="scan-button" type="submit"><span>GENERATE HASH</span><b>→</b></button></form>
+<form method="post" action="/crypto#output" class="utility-form"><input type="hidden" name="mode" value="password"><label for="length">SECURE PASSWORD LENGTH (16–64)</label><input id="length" name="length" type="number" min="16" max="64" value="20"><button class="scan-button" type="submit"><span>GENERATE PASSWORD</span><b>→</b></button></form>
+<div class="disclaimer-box"><strong>KEY SECURITY</strong><p>Passphrases are not saved. If you lose the passphrase, encrypted data cannot be recovered. Use a password manager and keep a secure backup.</p></div></aside>
+</section>
+{% if result or digest or generated_password %}
+<section class="results-section" id="output"><div class="section-kicker">03 / OPERATION OUTPUT</div><h2>Cryptographic result</h2>
+<div class="findings-panel">{% if result %}<label>RESULT // {{ 'ENCRYPTED PAYLOAD' if mode == 'encrypt' else 'DECRYPTED TEXT' }}</label><textarea id="crypto-result" rows="7" readonly>{{ result }}</textarea><button class="scan-button" type="button" onclick="navigator.clipboard.writeText(document.getElementById('crypto-result').value).then(()=>this.querySelector('span').textContent='COPIED TO CLIPBOARD')"><span>COPY RESULT</span><b>↗</b></button>{% elif digest %}<label>SHA-256 DIGEST</label><p class="mono-output">{{ digest }}</p>{% elif generated_password %}<label>GENERATED PASSWORD</label><input id="generated" value="{{ generated_password }}" readonly><button class="scan-button" type="button" onclick="navigator.clipboard.writeText(document.getElementById('generated').value).then(()=>this.querySelector('span').textContent='COPIED TO CLIPBOARD')"><span>COPY PASSWORD</span><b>↗</b></button>{% endif %}</div>
+</section>{% endif %}
+<footer><span>BATCOMPUTER <b>·</b> CRYPTOGRAPHIC UTILITIES</span><span>KEEP YOUR KEYS. PROTECT YOUR EVIDENCE.</span></footer>
+</main></div></body></html>
