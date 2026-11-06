@@ -1,3 +1,4 @@
 requests>=2.32,<3
 Flask>=3.0,<4
 cryptography>=42,<47
+reportlab>=4.0,<5

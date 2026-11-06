@@ -44,15 +44,15 @@ def main() -> int:
             worker.join()
             return 0
 
-        webview.create_window(
-            "BATCOMPUTER — Batman Bug Hunter X",
-            URL,
-            width=1440,
-            height=940,
-            min_size=(900, 650),
-            text_select=True,
-        )
         try:
+            webview.create_window(
+                "BATCOMPUTER — Batman Bug Hunter X",
+                URL,
+                width=1440,
+                height=940,
+                min_size=(900, 650),
+                text_select=True,
+            )
             webview.start()
         except Exception as exc:
             print(f"Native desktop window could not start: {exc}")

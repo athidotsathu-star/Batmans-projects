@@ -2,7 +2,7 @@ name: Build desktop installers
 
 on:
   push:
-    branches: [main, feature/bug-hunter-desktop-installer]
+    branches: [main, feature/bug-hunter-desktop-installer, feature/bug-hunter-v2-security-suite]
     paths:
       - "02-batman-bug-hunter/**"
       - ".github/workflows/bug-hunter-desktop.yml"
@@ -35,15 +35,39 @@ jobs:
         run: python -m compileall -q batman_hunter run_app.py
       - name: Package Windows desktop application
         run: pyinstaller --noconfirm --clean --windowed --onedir --name BatmanBugHunter --add-data "templates;templates" --add-data "static;static" --collect-all flask --collect-all webview --collect-all cryptography run_app.py
+      - name: Build one-click updater EXE
+        run: pyinstaller --noconfirm --clean --onefile --windowed --name BatmanBugHunterUpdater updater.py
       - name: Build Windows Setup EXE
         run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /O+ /Q BatmanBugHunter.iss'
         shell: pwsh
+      - name: Smoke-test installed Windows application
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:RUNNER_TEMP "BatmanBugHunter"
+          $setup = Resolve-Path "installer/BatmanBugHunter-Setup.exe"
+          Start-Process -FilePath $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$installDir" -Wait
+          $app = Start-Process -FilePath (Join-Path $installDir "BatmanBugHunter.exe") -ArgumentList "--browser" -PassThru
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 2
+              try {
+                $home = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 3
+                $crypto = Invoke-WebRequest -Uri "http://127.0.0.1:5000/crypto" -UseBasicParsing -TimeoutSec 3
+                if ($home.StatusCode -eq 200 -and $crypto.StatusCode -eq 200) { $ready = $true; break }
+              } catch {}
+            }
+            if (-not $ready) { throw "Installed application did not serve the dashboard and Crypto Lab." }
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
+            $uninstaller = Join-Path $installDir "unins000.exe"
+            if (Test-Path $uninstaller) { Start-Process -FilePath $uninstaller -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES" -Wait }
+          }
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: BatmanBugHunter-Windows-Setup
-          path: 02-batman-bug-hunter/installer/BatmanBugHunter-Setup.exe
-          if-no-files-found: error
+          path: |\n            02-batman-bug-hunter/installer/BatmanBugHunter-Setup.exe\n            02-batman-bug-hunter/dist/BatmanBugHunterUpdater.exe\n          if-no-files-found: error
           retention-days: 30
 
   linux-package:
@@ -79,3 +103,15 @@ jobs:
           path: 02-batman-bug-hunter/BatmanBugHunter-Linux.tar.gz
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish latest release and checksums
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = "installer/BatmanBugHunter-Setup.exe"
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+          "$hash  BatmanBugHunter-Setup.exe" | Set-Content -Encoding ascii installer/SHA256SUMS.txt
+          $tag = "v3.2.${{ github.run_number }}"
+          gh release create $tag $setup installer/SHA256SUMS.txt --title "Batman Bug Hunter X $tag" --notes "Automated Windows release. Verify installer using SHA256SUMS.txt." --latest

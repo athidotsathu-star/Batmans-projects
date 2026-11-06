@@ -98,3 +98,48 @@ Document the lab target, authorization, date, mode, checks performed, findings, 
 
 ## License
 MIT. See the repository license if one is added.
+
+
+## Version 2.0 — Security Operations Suite
+
+The v2.0 feature branch adds five workflows while preserving the original web scanner and Crypto Lab:
+
+- **Advanced Web Vulnerability Scanner:** retains the existing passive HTTP/TLS/cookie/security-header checks and bounded safe-active OPTIONS/CORS/directory-index probes. It does not send SQL injection or XSS exploit payloads, brute-force credentials, bypass authentication, or test destructive/state-changing paths. Do not describe it as a full OWASP Top 10 penetration scanner.
+- **Network Reconnaissance:** bounded TCP connect checks for up to 32 user-selected ports on one explicitly authorized host. Results marked `closed_or_filtered` are ambiguous.
+- **Digital Forensics:** SHA-256/SHA-1/MD5 evidence fingerprints and keyword-based review of uploaded text logs. Uploads are processed in memory, limited to 2 MB, and not persisted by the app.
+- **Blue Team Security:** analyzes an exported Windows Security Event CSV for Event ID 4625 failed-logon bursts. It does not directly collect Windows event logs. Repeated failures are leads, not proof of compromise.
+- **Professional Reporting:** generates a PDF with summary metrics, evidence observations and analyst notes.
+
+### Run the operations suite
+
+Install dependencies as described above, then start the local dashboard. Open:
+- Command Center: http://127.0.0.1:5000/
+- Crypto Lab: http://127.0.0.1:5000/crypto
+- Operations Suite: http://127.0.0.1:5000/modules
+
+The dashboard binds to loopback only. Reports are generated from the latest operation in the running process; they are not a durable case-management database. Do not upload sensitive production evidence to an unapproved environment.
+
+### Windows failed-logon CSV
+
+Export a narrowly scoped Windows Security log query to CSV, including Event ID, TargetUserName and IpAddress fields where available. Upload that export to the Blue Team module. The tool only analyzes the supplied file.
+
+### Validation
+
+Run the unit tests from this directory:
+```bash
+python -m unittest discover -s tests -v
+```
+
+The network reconnaissance test uses loopback and a single port. Test other targets only with explicit authorization.
+
+
+## Windows one-click updater
+
+The Windows installer includes `BatmanBugHunterUpdater.exe` and a Start Menu/Desktop shortcut. Double-click the updater to:
+1. Query the latest published GitHub Release.
+2. Compare its version with the installed version.
+3. Download `BatmanBugHunter-Setup.exe` and `SHA256SUMS.txt`.
+4. Verify the installer SHA-256 before executing it.
+5. Run the Inno Setup installer quietly as the current Windows user.
+
+The updater requires internet access and a published GitHub Release containing both assets. The repository Actions workflow publishes a new latest release after a successful Windows build on `main`. Feature-branch builds do not publish releases. An existing installation must first be upgraded/reinstalled with a setup package that contains the updater; older installations do not gain the updater automatically. The updater is not code-signed, so Windows SmartScreen may display a reputation warning. SHA-256 verifies download integrity against the release checksum but does not establish publisher identity; use the official repository release page.
