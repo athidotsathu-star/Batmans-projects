@@ -1,3 +1,3 @@
 """Batman Bug Hunter: passive-first web security checks."""
 
-__version__ = "1.0.0"
+__version__ = "3.2.0"

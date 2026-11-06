@@ -2,14 +2,14 @@ name: Build desktop installers
 
 on:
   push:
-    branches: [main, feature/bug-hunter-desktop-installer, feature/bug-hunter-v2-security-suite]
+    branches: [main, feature/bug-hunter-desktop-installer, feature/bug-hunter-v2-security-suite, fix/windows-installer-updater]
     paths:
       - "02-batman-bug-hunter/**"
       - ".github/workflows/bug-hunter-desktop.yml"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   windows-installer:
@@ -27,26 +27,44 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
       - name: Install build dependencies
-        run: python -m pip install --upgrade pip; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; python -m pip install -r requirements-build.txt
         shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m pip install -r requirements-build.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Compile Python sources
-        run: python -m compileall -q batman_hunter run_app.py
+        run: python -m compileall -q batman_hunter run_app.py updater.py
       - name: Package Windows desktop application
         run: pyinstaller --noconfirm --clean --windowed --onedir --name BatmanBugHunter --add-data "templates;templates" --add-data "static;static" --collect-all flask --collect-all webview --collect-all cryptography run_app.py
       - name: Build one-click updater EXE
         run: pyinstaller --noconfirm --clean --onefile --windowed --name BatmanBugHunterUpdater updater.py
-      - name: Build Windows Setup EXE
-        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /O+ /Q BatmanBugHunter.iss'
+      - name: Verify installer inputs exist
         shell: pwsh
-      - name: Smoke-test installed Windows application
+        run: |
+          $required = @(
+            "dist/BatmanBugHunter/BatmanBugHunter.exe",
+            "dist/BatmanBugHunterUpdater.exe"
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file -PathType Leaf)) { throw "Required build output missing: $file" }
+          }
+      - name: Build Windows Setup EXE
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /O+ /Q BatmanBugHunter.iss'
+      - name: Smoke-test installed Windows application and updater
         shell: pwsh
         run: |
           $installDir = Join-Path $env:RUNNER_TEMP "BatmanBugHunter"
           $setup = Resolve-Path "installer/BatmanBugHunter-Setup.exe"
           Start-Process -FilePath $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$installDir" -Wait
-          $app = Start-Process -FilePath (Join-Path $installDir "BatmanBugHunter.exe") -ArgumentList "--browser" -PassThru
+          $appExe = Join-Path $installDir "BatmanBugHunter.exe"
+          $updaterExe = Join-Path $installDir "BatmanBugHunterUpdater.exe"
+          if (-not (Test-Path $appExe -PathType Leaf)) { throw "Installed application executable is missing." }
+          if (-not (Test-Path $updaterExe -PathType Leaf)) { throw "Installed updater executable is missing." }
+          $app = Start-Process -FilePath $appExe -ArgumentList "--browser" -PassThru
           try {
             $ready = $false
             for ($i = 0; $i -lt 30; $i++) {
@@ -63,12 +81,26 @@ jobs:
             $uninstaller = Join-Path $installDir "unins000.exe"
             if (Test-Path $uninstaller) { Start-Process -FilePath $uninstaller -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES" -Wait }
           }
-      - name: Upload Windows installer
+      - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: BatmanBugHunter-Windows-Setup
-          path: |\n            02-batman-bug-hunter/installer/BatmanBugHunter-Setup.exe\n            02-batman-bug-hunter/dist/BatmanBugHunterUpdater.exe\n          if-no-files-found: error
+          path: |
+            02-batman-bug-hunter/installer/BatmanBugHunter-Setup.exe
+            02-batman-bug-hunter/dist/BatmanBugHunterUpdater.exe
+          if-no-files-found: error
           retention-days: 30
+      - name: Publish latest Windows release
+        if: github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $setup = "installer/BatmanBugHunter-Setup.exe"
+          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+          "$hash  BatmanBugHunter-Setup.exe" | Set-Content -Encoding ascii installer/SHA256SUMS.txt
+          $tag = "v3.2.${{ github.run_number }}"
+          gh release create $tag $setup installer/SHA256SUMS.txt --title "Batman Bug Hunter X $tag" --notes "Windows installer for Batman Bug Hunter X. Verify installer using SHA256SUMS.txt." --latest
 
   linux-package:
     runs-on: ubuntu-22.04
@@ -91,7 +123,7 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Compile Python sources
-        run: python -m compileall -q batman_hunter run_app.py
+        run: python -m compileall -q batman_hunter run_app.py updater.py
       - name: Package Linux application
         run: pyinstaller --noconfirm --clean --windowed --onedir --name BatmanBugHunter --add-data "templates:templates" --add-data "static:static" --collect-all flask --collect-all webview --collect-all cryptography run_app.py
       - name: Archive Linux application
@@ -103,15 +135,3 @@ jobs:
           path: 02-batman-bug-hunter/BatmanBugHunter-Linux.tar.gz
           if-no-files-found: error
           retention-days: 30
-
-      - name: Publish latest release and checksums
-        if: github.ref == 'refs/heads/main'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $setup = "installer/BatmanBugHunter-Setup.exe"
-          $hash = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
-          "$hash  BatmanBugHunter-Setup.exe" | Set-Content -Encoding ascii installer/SHA256SUMS.txt
-          $tag = "v3.2.${{ github.run_number }}"
-          gh release create $tag $setup installer/SHA256SUMS.txt --title "Batman Bug Hunter X $tag" --notes "Automated Windows release. Verify installer using SHA256SUMS.txt." --latest

@@ -1,8 +1,9 @@
 ; Inno Setup 6 installer definition for Windows.
 #define MyAppName "Batman Bug Hunter X"
-#define MyAppVersion "3.1.0"
+#define MyAppVersion "3.2.0"
 #define MyAppPublisher "Batcomputer"
 #define MyAppExeName "BatmanBugHunter.exe"
+#define MyUpdaterExeName "BatmanBugHunterUpdater.exe"
 
 [Setup]
 AppId={{B7C69A8A-27A2-4F21-A9A7-8E41E1A4B310}
@@ -21,13 +22,16 @@ ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=lowest
 SetupLogging=yes
 CloseApplications=yes
+RestartApplications=no
 
 [Files]
 Source: "dist\BatmanBugHunter\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\{#MyUpdaterExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Batman Bug Hunter X"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Batman Bug Hunter X (Browser)"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--browser"
+Name: "{group}\Batman Bug Hunter X Updater"; Filename: "{app}\{#MyUpdaterExeName}"
 Name: "{autodesktop}\Batman Bug Hunter X"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Tasks]
