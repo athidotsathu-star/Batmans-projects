@@ -7,22 +7,23 @@
 </head>
 <body>
 <main class="shell">
-  <header><p class="eyebrow">AUTHORIZED SECURITY ASSESSMENT</p><h1>BATMAN <span>BUG HUNTER</span></h1>
-    <p class="sub">Passive-first website and web application security checks.</p></header>
+  <header><p class="eyebrow">AUTHORIZED SECURITY ASSESSMENT · V2.0</p><h1>BATMAN <span>BUG HUNTER</span></h1>
+    <p class="sub">Cross-platform web security assessment · Passive and safe-active checks.</p></header>
   <section class="panel">
     <form method="post" action="/scan">
       <label for="target">Target URL</label>
-      <input id="target" name="target" type="url" placeholder="https://your-authorized-domain.example" required>
-      <label class="check"><input type="checkbox" name="authorized" value="yes" required> I own this system or have explicit permission to scan it.</label>
+      <input id="target" name="target" type="url" placeholder="http://127.0.0.1:3000" required>
+      <label class="check"><input type="checkbox" name="authorized" value="yes" required> I own this system or have explicit permission to assess it.</label>
       <label class="check"><input type="checkbox" name="allow_private" value="yes"> Allow private IPs (only for my isolated lab).</label>
-      <button type="submit">START SAFE SCAN</button>
+      <label class="check active"><input type="checkbox" name="active" value="yes"> Enable safe-active checks (CORS, HTTP OPTIONS and directory listing).</label>
+      <button type="submit">START ASSESSMENT</button>
     </form>
-    <p class="notice">No exploit payloads, brute force, login attempts or destructive tests. Keep this dashboard on your own computer.</p>
+    <p class="notice">Safe-active checks use bounded, non-destructive requests. No exploit payloads, brute force, login attempts, destructive tests or denial-of-service checks. Keep this dashboard on your own computer.</p>
   </section>
   {% if error %}<section class="alert">{{ error }}</section>{% endif %}
   {% if report %}
   <section class="panel">
-    <div class="result-head"><div><p class="eyebrow">SCAN COMPLETE</p><h2>{{ report.target }}</h2></div><span class="pill">{{ report.requests_made }} requests</span></div>
+    <div class="result-head"><div><p class="eyebrow">ASSESSMENT COMPLETE · {{ report.mode|upper }}</p><h2>{{ report.target }}</h2></div><span class="pill">{{ report.requests_made }} requests</span></div>
     <div class="stats">
       {% for level in ["High","Medium","Low","Info"] %}
       <div class="stat"><strong>{{ report.summary[level] }}</strong><span>{{ level }}</span></div>
@@ -39,6 +40,6 @@
     <p class="notice">{{ report.disclaimer }}</p>
   </section>
   {% endif %}
-  <footer>Batman Bug Hunter · Learning project · Use only within written scope</footer>
+  <footer>Batman Bug Hunter · Cross-platform learning project · Test only within written scope</footer>
 </main>
 </body></html>
