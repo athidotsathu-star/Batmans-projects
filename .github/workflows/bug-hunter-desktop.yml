@@ -38,6 +38,29 @@ jobs:
       - name: Build Windows Setup EXE
         run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" /O+ /Q BatmanBugHunter.iss'
         shell: pwsh
+      - name: Smoke-test installed Windows application
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:RUNNER_TEMP "BatmanBugHunter"
+          $setup = Resolve-Path "installer/BatmanBugHunter-Setup.exe"
+          Start-Process -FilePath $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$installDir" -Wait
+          $app = Start-Process -FilePath (Join-Path $installDir "BatmanBugHunter.exe") -ArgumentList "--browser" -PassThru
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 2
+              try {
+                $home = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 3
+                $crypto = Invoke-WebRequest -Uri "http://127.0.0.1:5000/crypto" -UseBasicParsing -TimeoutSec 3
+                if ($home.StatusCode -eq 200 -and $crypto.StatusCode -eq 200) { $ready = $true; break }
+              } catch {}
+            }
+            if (-not $ready) { throw "Installed application did not serve the dashboard and Crypto Lab." }
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id -Force }
+            $uninstaller = Join-Path $installDir "unins000.exe"
+            if (Test-Path $uninstaller) { Start-Process -FilePath $uninstaller -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES" -Wait }
+          }
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
