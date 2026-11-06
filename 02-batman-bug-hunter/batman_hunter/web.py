@@ -13,9 +13,10 @@ from .windows_events import analyze_auth_events_csv, collect_local_security_even
 from .risk import score_findings
 from .html_reporting import build_html
 from .versioning import version_info, check_latest
+from .wireless import detect_wireless_environment, analyze_pcap
 
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
-app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 _latest_report = {"title":"Batman Bug Hunter X","summary":{"Status":"No operation completed yet"},"details":[],"notes":"Run a module to populate this report."}
 _scan_history = []
 
@@ -175,6 +176,39 @@ def api_dashboard():
         },
         "history": list(_scan_history)
     })
+
+
+@app.get("/wireless")
+def wireless():
+    try: env=detect_wireless_environment()
+    except Exception as exc: return render_template("wireless.html",environment=None,capture=None,error=str(exc))
+    return render_template("wireless.html",environment=env,capture=None,error=None)
+
+@app.post("/wireless/discover")
+def wireless_discover():
+    try:
+        env=detect_wireless_environment()
+        _remember("Wireless adapter and access-point inventory",{"Platform":env["platform"],"Adapters":len(env["adapters"]),"Visible networks":len(env["networks"])},[{"severity":"Info","Observation":"Read-only wireless inventory completed","Interfaces":env["adapters"],"Access points":len(env["networks"])}],env["disclaimer"]+" "+" ".join(env["notes"]))
+        return render_template("wireless.html",environment=env,capture=None,error=None)
+    except Exception as exc: return render_template("wireless.html",environment=None,capture=None,error=str(exc))
+
+@app.post("/wireless/capture")
+def wireless_capture():
+    upload=request.files.get("capture")
+    try:
+        if request.form.get("authorized")!="yes": raise ValueError("Confirm you own this capture or have permission to analyze it.")
+        if not upload or not upload.filename: raise ValueError("Choose a PCAP file.")
+        if not upload.filename.lower().endswith(".pcap"): raise ValueError("Only classic .pcap is supported. Convert PCAPNG in Wireshark first.")
+        data=upload.read(10*1024*1024+1)
+        if len(data)>10*1024*1024: raise ValueError("Capture exceeds the 10 MB limit.")
+        result=analyze_pcap(data)
+        _remember("Wireless offline capture analysis",{"Filename":upload.filename,"Packets":result["packets"],"EAPOL frames":result["eapol_frames"],"Beacon frames":result["beacon_frames"],"SHA-256":result["sha256"]},[{"severity":"Info","Observation":result["interpretation"],"Packets":result["packets"],"EAPOL frames":result["eapol_frames"],"Observed SSIDs":result["observed_ssids"]}],result["disclaimer"])
+        env=detect_wireless_environment()
+        return render_template("wireless.html",environment=env,capture=result,error=None)
+    except (ValueError,OSError) as exc:
+        try: env=detect_wireless_environment()
+        except Exception: env=None
+        return render_template("wireless.html",environment=env,capture=None,error=str(exc))
 
 @app.get("/api/version")
 def api_version():
