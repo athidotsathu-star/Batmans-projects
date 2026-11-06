@@ -1,45 +1,127 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Batman Bug Hunter</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b12">
+  <title>Batman Bug Hunter — Security Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<main class="shell">
-  <header><p class="eyebrow">AUTHORIZED SECURITY ASSESSMENT · V2.0</p><h1>BATMAN <span>BUG HUNTER</span></h1>
-    <p class="sub">Cross-platform web security assessment · Passive and safe-active checks.</p></header>
-  <section class="panel">
-    <form method="post" action="/scan">
-      <label for="target">Target URL</label>
-      <input id="target" name="target" type="url" placeholder="http://127.0.0.1:3000" required>
-      <label class="check"><input type="checkbox" name="authorized" value="yes" required> I own this system or have explicit permission to assess it.</label>
-      <label class="check"><input type="checkbox" name="allow_private" value="yes"> Allow private IPs (only for my isolated lab).</label>
-      <label class="check active"><input type="checkbox" name="active" value="yes"> Enable safe-active checks (CORS, HTTP OPTIONS and directory listing).</label>
-      <button type="submit">START ASSESSMENT</button>
-    </form>
-    <p class="notice">Safe-active checks use bounded, non-destructive requests. No exploit payloads, brute force, login attempts, destructive tests or denial-of-service checks. Keep this dashboard on your own computer.</p>
-  </section>
-  {% if error %}<section class="alert">{{ error }}</section>{% endif %}
-  {% if report %}
-  <section class="panel">
-    <div class="result-head"><div><p class="eyebrow">ASSESSMENT COMPLETE · {{ report.mode|upper }}</p><h2>{{ report.target }}</h2></div><span class="pill">{{ report.requests_made }} requests</span></div>
-    <div class="stats">
-      {% for level in ["High","Medium","Low","Info"] %}
-      <div class="stat"><strong>{{ report.summary[level] }}</strong><span>{{ level }}</span></div>
-      {% endfor %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="Batman Bug Hunter home">
+      <span class="brand-mark">B<span>.</span></span>
+      <span class="brand-copy"><strong>BATMAN</strong><small>BUG HUNTER <i>v2.0</i></small></span>
+    </a>
+    <div class="side-label">WORKSPACE</div>
+    <a class="nav-item active" href="/"><span class="nav-icon">⌕</span> Security assessment</a>
+    <div class="side-label side-label-spaced">ASSESSMENT MODES</div>
+    <div class="mode-item"><span class="mode-dot passive"></span><span><strong>Passive scan</strong><small>Configuration & exposure</small></span></div>
+    <div class="mode-item"><span class="mode-dot active-dot"></span><span><strong>Safe-active checks</strong><small>Non-destructive probes</small></span></div>
+    <div class="sidebar-bottom">
+      <div class="scope-card"><span class="scope-icon">盾</span><strong>Authorized use only</strong><p>Assess systems you own or have written permission to test.</p></div>
+      <div class="version-line"><span class="live-dot"></span> LOCAL CONSOLE <span class="version">BUILD 2.0</span></div>
     </div>
-    <h2>Findings</h2>
-    {% if report.findings %}
-      {% for finding in report.findings %}
-      <article class="finding"><div class="finding-top"><strong>{{ finding.title }}</strong><span class="severity {{ finding.severity|lower }}">{{ finding.severity }}</span></div>
-        <p>{{ finding.evidence }}</p><small>Fix: {{ finding.recommendation }}</small></article>
-      {% endfor %}
-    {% else %}<p>No findings from the enabled checks.</p>{% endif %}
-    <h2>Observations</h2><ul>{% for item in report.observations %}<li>{{ item }}</li>{% endfor %}</ul>
-    <p class="notice">{{ report.disclaimer }}</p>
-  </section>
-  {% endif %}
-  <footer>Batman Bug Hunter · Cross-platform learning project · Test only within written scope</footer>
-</main>
-</body></html>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="breadcrumb">WORKSPACE <span>/</span> <strong>SECURITY ASSESSMENT</strong></div>
+      <div class="top-status"><span class="live-dot"></span> ENGINE READY <span class="top-divider"></span><span class="local-label">LOCALHOST</span></div>
+    </header>
+
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span></span> WEB APPLICATION SECURITY TOOLKIT</div>
+        <h1>Find the gaps.<br><em>Strengthen the defense.</em></h1>
+        <p>Run a controlled security assessment, review evidence and turn findings into actionable fixes.</p>
+      </div>
+      <div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="shield">B</div><span class="art-cross cross-one">+</span><span class="art-cross cross-two">+</span></div>
+    </section>
+
+    {% if error %}
+    <section class="alert" role="alert"><span class="alert-mark">!</span><div><strong>Assessment could not start</strong><p>{{ error }}</p></div></section>
+    {% endif %}
+
+    <section class="workspace-grid">
+      <section class="panel scan-panel">
+        <div class="panel-heading">
+          <div><div class="section-kicker">01 / CONFIGURE TARGET</div><h2>New assessment</h2><p>Define the target and choose your testing scope.</p></div>
+          <span class="panel-icon">⌁</span>
+        </div>
+        <form method="post" action="/scan" id="scan-form">
+          <label for="target">TARGET ADDRESS</label>
+          <div class="input-wrap"><span class="input-prefix">↗</span><input id="target" name="target" type="url" placeholder="https://your-authorized-target.com" required autocomplete="url"></div>
+          <div class="field-hint">Enter the full HTTP or HTTPS URL, including the port if required.</div>
+
+          <div class="option-heading">ASSESSMENT OPTIONS</div>
+          <label class="option">
+            <input type="checkbox" name="authorized" value="yes" required>
+            <span class="custom-check"></span>
+            <span class="option-copy"><strong>Authorization confirmed <b class="required">*</b></strong><small>I own this system or have explicit permission to assess it.</small></span>
+          </label>
+          <label class="option">
+            <input type="checkbox" name="allow_private" value="yes">
+            <span class="custom-check"></span>
+            <span class="option-copy"><strong>Private lab target</strong><small>Allow private or local IP addresses for my isolated lab only.</small></span>
+            <span class="option-tag">LAB</span>
+          </label>
+          <label class="option option-active">
+            <input type="checkbox" name="active" value="yes">
+            <span class="custom-check"></span>
+            <span class="option-copy"><strong>Enable safe-active checks</strong><small>Check CORS behavior, HTTP OPTIONS and directory listing.</small></span>
+            <span class="option-tag teal-tag">OPT-IN</span>
+          </label>
+          <button class="scan-button" type="submit"><span>RUN SECURITY ASSESSMENT</span><b>→</b></button>
+        </form>
+        <div class="safety-note"><span>i</span><p><strong>Controlled testing:</strong> Requests are bounded and non-destructive. No brute force, exploit payloads, login attempts or denial-of-service tests are performed.</p></div>
+      </section>
+
+      <aside class="panel info-panel">
+        <div class="section-kicker">ASSESSMENT COVERAGE</div><h2>What we inspect</h2>
+        <div class="coverage-list">
+          <div class="coverage-item"><span class="coverage-icon">⌑</span><div><strong>HTTP security</strong><small>Headers, methods and server disclosure</small></div><span class="coverage-check">✓</span></div>
+          <div class="coverage-item"><span class="coverage-icon">◇</span><div><strong>TLS & cookies</strong><small>Certificate trust and cookie attributes</small></div><span class="coverage-check">✓</span></div>
+          <div class="coverage-item"><span class="coverage-icon">⌕</span><div><strong>Exposure checks</strong><small>Common sensitive paths and listings</small></div><span class="coverage-check">✓</span></div>
+          <div class="coverage-item"><span class="coverage-icon">⇄</span><div><strong>CORS behavior</strong><small>Controlled Origin response checks</small></div><span class="coverage-check optional">+</span></div>
+        </div>
+        <div class="coverage-foot"><span class="live-dot"></span> ENGINE STATUS <strong>READY</strong></div>
+        <div class="disclaimer-box"><strong>Assessment disclaimer</strong><p>Automated checks identify potential weaknesses, not confirmed exploitability. Validate findings manually before taking action.</p></div>
+      </aside>
+    </section>
+
+    {% if report %}
+    <section class="results-section" id="results">
+      <div class="results-title"><div><div class="section-kicker">02 / SCAN OUTPUT</div><h2>Assessment results</h2><p>{{ report.target }} <span class="result-separator">·</span> {{ report.scanned_at }}</p></div><span class="complete-pill"><i></i> COMPLETED</span></div>
+      <div class="result-meta"><span class="meta-chip">{{ report.mode|upper }}</span><span class="meta-chip">{{ report.requests_made }} REQUESTS</span></div>
+      <div class="stats-grid">
+        {% for level in ["High","Medium","Low","Info"] %}
+        <div class="stat-card stat-{{ level|lower }}"><div class="stat-top"><span>{{ level|upper }}</span><i></i></div><strong>{{ report.summary[level] }}</strong><small>Findings</small></div>
+        {% endfor %}
+      </div>
+      <div class="findings-panel">
+        <div class="findings-heading"><div><h3>Findings <span>{{ report.findings|length }}</span></h3><p>Review each observation and recommended remediation.</p></div></div>
+        {% if report.findings %}
+          {% for finding in report.findings %}
+          <article class="finding">
+            <div class="finding-main"><span class="severity severity-{{ finding.severity|lower }}">{{ finding.severity|upper }}</span><div><strong>{{ finding.title }}</strong><small>{{ finding.category }}</small></div></div>
+            <div class="finding-detail"><div><label>EVIDENCE</label><p>{{ finding.evidence }}</p></div><div><label>RECOMMENDED ACTION</label><p>{{ finding.recommendation }}</p></div></div>
+          </article>
+          {% endfor %}
+        {% else %}<div class="empty-state"><span>✓</span><strong>No findings from the enabled checks</strong><p>This does not guarantee the target is secure. Review the assessment limitations.</p></div>{% endif %}
+      </div>
+      <div class="observations-panel"><h3>Scan observations</h3><ul>{% for item in report.observations %}<li>{{ item }}</li>{% endfor %}</ul></div>
+      <p class="report-disclaimer">{{ report.disclaimer }}</p>
+    </section>
+    {% endif %}
+
+    <footer><span>BATMAN BUG HUNTER <b>·</b> BUILT FOR AUTHORIZED SECURITY TESTING</span><span>KEEP YOUR SCOPE. VERIFY YOUR FINDINGS.</span></footer>
+  </main>
+</div>
+{% if report %}<script>document.getElementById("results").scrollIntoView({behavior:"smooth",block:"start"});</script>{% endif %}
+</body>
+</html>
