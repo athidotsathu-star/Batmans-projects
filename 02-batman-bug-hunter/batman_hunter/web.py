@@ -25,6 +25,8 @@ def _remember(title, summary, details, notes=""):
     risk = score_findings(details)
     summary = {**summary, "Risk points (BBH heuristic)":risk["total_risk_points"], "Highest priority":risk["highest_priority"]}
     _latest_report={"title":title,"summary":summary,"details":risk["prioritized_findings"],"notes":notes + "\n\n" + risk["guidance"]}
+    _scan_history.insert(0, {"title":title, "time":__import__("datetime").datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %Z"), "target":str(summary.get("Target", "")), "findings":len(risk["prioritized_findings"])})
+    del _scan_history[20:]
 
 @app.get("/")
 def index():
