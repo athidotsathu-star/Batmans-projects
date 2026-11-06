@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Batman Bug Hunter</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<main class="shell">
+  <header><p class="eyebrow">AUTHORIZED SECURITY ASSESSMENT</p><h1>BATMAN <span>BUG HUNTER</span></h1>
+    <p class="sub">Passive-first website and web application security checks.</p></header>
+  <section class="panel">
+    <form method="post" action="/scan">
+      <label for="target">Target URL</label>
+      <input id="target" name="target" type="url" placeholder="https://your-authorized-domain.example" required>
+      <label class="check"><input type="checkbox" name="authorized" value="yes" required> I own this system or have explicit permission to scan it.</label>
+      <label class="check"><input type="checkbox" name="allow_private" value="yes"> Allow private IPs (only for my isolated lab).</label>
+      <button type="submit">START SAFE SCAN</button>
+    </form>
+    <p class="notice">No exploit payloads, brute force, login attempts or destructive tests. Keep this dashboard on your own computer.</p>
+  </section>
+  {% if error %}<section class="alert">{{ error }}</section>{% endif %}
+  {% if report %}
+  <section class="panel">
+    <div class="result-head"><div><p class="eyebrow">SCAN COMPLETE</p><h2>{{ report.target }}</h2></div><span class="pill">{{ report.requests_made }} requests</span></div>
+    <div class="stats">
+      {% for level in ["High","Medium","Low","Info"] %}
+      <div class="stat"><strong>{{ report.summary[level] }}</strong><span>{{ level }}</span></div>
+      {% endfor %}
+    </div>
+    <h2>Findings</h2>
+    {% if report.findings %}
+      {% for finding in report.findings %}
+      <article class="finding"><div class="finding-top"><strong>{{ finding.title }}</strong><span class="severity {{ finding.severity|lower }}">{{ finding.severity }}</span></div>
+        <p>{{ finding.evidence }}</p><small>Fix: {{ finding.recommendation }}</small></article>
+      {% endfor %}
+    {% else %}<p>No findings from the enabled checks.</p>{% endif %}
+    <h2>Observations</h2><ul>{% for item in report.observations %}<li>{{ item }}</li>{% endfor %}</ul>
+    <p class="notice">{{ report.disclaimer }}</p>
+  </section>
+  {% endif %}
+  <footer>Batman Bug Hunter · Learning project · Use only within written scope</footer>
+</main>
+</body></html>
