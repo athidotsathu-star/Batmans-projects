@@ -52,7 +52,13 @@ def main() -> int:
             min_size=(900, 650),
             text_select=True,
         )
-        webview.start()
+        try:
+            webview.start()
+        except Exception as exc:
+            print(f"Native desktop window could not start: {exc}")
+            print(f"Opening the local console in your browser: {URL}")
+            webbrowser.open(URL)
+            worker.join()
         return 0
     except KeyboardInterrupt:
         return 0
