@@ -143,3 +143,27 @@ The Windows installer includes `BatmanBugHunterUpdater.exe` and a Start Menu/Des
 5. Run the Inno Setup installer quietly as the current Windows user.
 
 The updater requires internet access and a published GitHub Release containing both assets. The repository Actions workflow publishes a new latest release after a successful Windows build on `main`. Feature-branch builds do not publish releases. An existing installation must first be upgraded/reinstalled with a setup package that contains the updater; older installations do not gain the updater automatically. The updater is not code-signed, so Windows SmartScreen may display a reputation warning. SHA-256 verifies download integrity against the release checksum but does not establish publisher identity; use the official repository release page.
+
+
+## Batman Bug Hunter X 2.0 — first engineering increment
+
+The `feature/bbh20-public-nmap` branch begins the v2.0 professional-engineering track while preserving the existing web scanner, Flask interface and Crypto Lab.
+
+### Nmap adapter: authorized public and private single-host targets
+
+- Supports one public or private-unicast IPv4/IPv6 address, or a hostname that resolves to exactly one address.
+- Rejects ambiguous multi-address DNS answers; choose a specific in-scope address instead.
+- Rejects multicast, unspecified and reserved destinations.
+- Uses Nmap TCP connect mode (`-sT`) with bounded port selection (1–64 unique ports), bounded timeout, retries and host timeout.
+- Parses Nmap XML into structured port, state, reason and service-version evidence.
+- Public reachability is not authorization. The existing dashboard confirmation remains mandatory; only scan assets covered by written permission.
+- This is not yet a full Nmap replacement: no subnet/range scans, UDP scans, OS detection, NSE scripts, stealth modes or aggressive timing.
+
+### New regression tests
+
+Run from this directory:
+```bash
+python -m unittest discover -s tests -v
+```
+
+The new `tests/test_nmap_adapter.py` tests public/private/loopback address handling, DNS ambiguity, invalid targets, port bounds and Nmap XML parsing. These tests mock Nmap execution and do not send network probes.
