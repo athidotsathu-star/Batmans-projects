@@ -12,13 +12,12 @@ def _validate_lab_url(url: str) -> str:
     if p.scheme not in ("http","https") or not p.hostname or p.username or p.password:
         raise ValueError("Enter a valid HTTP(S) lab URL.")
     host=p.hostname.lower().rstrip(".")
-    if host != "localhost":
-        try:
-            addresses={ipaddress.ip_address(x[4][0]) for x in socket.getaddrinfo(host,p.port or (443 if p.scheme=="https" else 80),type=socket.SOCK_STREAM)}
-        except OSError as exc:
-            raise ValueError("Lab hostname could not be resolved.") from exc
-        if not addresses or not all(a.is_loopback for a in addresses):
-            raise ValueError("SQLi/XSS lab checks are restricted to localhost or 127.0.0.0/8. Public and LAN targets are blocked.")
+    try:
+        addresses={ipaddress.ip_address(x[4][0]) for x in socket.getaddrinfo(host,p.port or (443 if p.scheme=="https" else 80),type=socket.SOCK_STREAM)}
+    except OSError as exc:
+        raise ValueError("Lab hostname could not be resolved.") from exc
+    if not addresses or not all(a.is_loopback for a in addresses):
+        raise ValueError("SQLi/XSS lab checks are restricted to localhost or 127.0.0.0/8. Public and LAN targets are blocked.")
     return url
 
 def _get(url):
@@ -42,27 +41,22 @@ def run_lab_checks(url: str) -> dict:
         def make_url(v):
             changed=list(pairs); changed[index]=(name,v)
             return urlunparse(p._replace(query=urlencode(changed)))
-        # A quote-only input is a low-impact error-behavior indicator, not an exploit.
         try:
             quote=_get(make_url(value+"'"))
             tested.append({"parameter":name,"test":"single-quote behavior","status":quote["status"]})
             if quote["status"]>=500 and baseline["status"]<500:
-                findings.append({"type":"SQLi review","parameter":name,"severity":"Medium",
-                    "evidence":"A quote-only input changed the response from non-5xx to HTTP 5xx.",
-                    "confidence":"Low","recommendation":"Review server-side parameterized queries and application error handling; manually validate in the lab."})
+                findings.append({"type":"SQLi review","parameter":name,"severity":"Medium","evidence":"A quote-only input changed the response from non-5xx to HTTP 5xx.","confidence":"Low","recommendation":"Review parameterized queries and error handling; manually validate in the lab."})
         except requests.RequestException:
             tested.append({"parameter":name,"test":"single-quote behavior","error":"request failed"})
-        marker="BBH_XSS_MARKER_73A91"
+        marker="BBH_XSS_MARKER_73A91"; probe="<bbh-probe>"+marker+"</bbh-probe>"
         try:
-            reflected=_get(make_url("<bbh-probe>"+marker+"</bbh-probe>"))
-            raw=marker in reflected["body"]
-            encoded=html.escape("<bbh-probe>"+marker+"</bbh-probe>") in reflected["body"]
+            reflected=_get(make_url(probe))
+            raw=probe in reflected["body"]
+            encoded=html.escape(probe) in reflected["body"]
             tested.append({"parameter":name,"test":"HTML reflection","status":reflected["status"],"raw_reflection":raw,"encoded_reflection":encoded})
             if raw:
-                findings.append({"type":"Reflected input review","parameter":name,"severity":"Medium",
-                    "evidence":"Unique harmless marker was reflected without HTML encoding in the response.",
-                    "confidence":"Medium","recommendation":"Review context-aware output encoding and Content-Security-Policy. This marker does not execute JavaScript and is not proof of XSS."})
+                findings.append({"type":"Reflected input review","parameter":name,"severity":"Medium","evidence":"A unique harmless HTML marker was reflected without HTML encoding.","confidence":"Medium","recommendation":"Review context-aware output encoding and Content-Security-Policy. The marker does not execute JavaScript and is not proof of XSS."})
         except requests.RequestException:
             tested.append({"parameter":name,"test":"HTML reflection","error":"request failed"})
-    return {"target":target,"scope":"loopback-only training lab","requests":1+len(tested),"baseline_status":baseline["status"],
-            "tests":tested,"findings":findings,"disclaimer":"Non-destructive indicators only. No JavaScript execution, form submission, authentication attempt, state change or exploit confirmation."}
+    return {"target":target,"scope":"loopback-only training lab","requests":1+len(tested),"baseline_status":baseline["status"],"tests":tested,"findings":findings,
+            "disclaimer":"Non-destructive indicators only. No JavaScript execution, form submission, authentication attempt, state change or exploit confirmation."}
