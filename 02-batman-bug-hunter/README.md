@@ -1,8 +1,19 @@
-# Batman Bug Hunter
+# BATCOMPUTER — Batman Bug Hunter X
+
+A tactical black-and-industrial-gold security console for Kali Linux, Linux, macOS and Windows. Version 3.0 adds a local cryptography lab alongside the existing authorized web assessment engine.
 
 A cross-platform web security assessment tool for **Kali Linux, Linux, macOS and Windows**. It provides a Python CLI and a localhost-only Flask dashboard.
 
-## Capabilities
+## Version 3.0 capabilities
+
+### Crypto Lab (`/crypto`)
+- Authenticated AES-256-GCM text encryption and decryption.
+- PBKDF2-HMAC-SHA256 passphrase key derivation (600,000 iterations), random 16-byte salt and 12-byte nonce.
+- SHA-256 text hashing and secure random password generation.
+- Encryption keys are derived in memory; passphrases are not persisted.
+- Encrypted payloads use the `BBH1.` format. Keep the passphrase safe: it cannot be recovered.
+
+### Existing web assessment capabilities
 
 ### Passive checks (default)
 - HTTP response security headers (CSP, HSTS, frame protection, content-type protection, Referrer-Policy, Permissions-Policy)
