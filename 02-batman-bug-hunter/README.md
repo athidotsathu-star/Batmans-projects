@@ -131,3 +131,15 @@ python -m unittest discover -s tests -v
 ```
 
 The network reconnaissance test uses loopback and a single port. Test other targets only with explicit authorization.
+
+
+## Windows one-click updater
+
+The Windows installer includes `BatmanBugHunterUpdater.exe` and a Start Menu/Desktop shortcut. Double-click the updater to:
+1. Query the latest published GitHub Release.
+2. Compare its version with the installed version.
+3. Download `BatmanBugHunter-Setup.exe` and `SHA256SUMS.txt`.
+4. Verify the installer SHA-256 before executing it.
+5. Run the Inno Setup installer quietly as the current Windows user.
+
+The updater requires internet access and a published GitHub Release containing both assets. The repository Actions workflow publishes a new latest release after a successful Windows build on `main`. Feature-branch builds do not publish releases. An existing installation must first be upgraded/reinstalled with a setup package that contains the updater; older installations do not gain the updater automatically. The updater is not code-signed, so Windows SmartScreen may display a reputation warning. SHA-256 verifies download integrity against the release checksum but does not establish publisher identity; use the official repository release page.
