@@ -1,108 +1,89 @@
 # Batman Bug Hunter
 
-A dual-interface, **passive-first** web security assessment tool. It provides a Python CLI and a Flask browser dashboard using the same scanning engine.
+A cross-platform web security assessment tool for **Kali Linux, Linux, macOS and Windows**. It provides a Python CLI and a localhost-only Flask dashboard.
 
-## What it checks
+## Capabilities
 
+### Passive checks (default)
 - HTTP response security headers (CSP, HSTS, frame protection, content-type protection, Referrer-Policy, Permissions-Policy)
 - Cookie flags (Secure, HttpOnly, SameSite)
 - TLS certificate validation through the platform trust store
 - Server and technology disclosure headers
-- HTML forms that submit credentials over plain HTTP
-- Commonly exposed files/directories using small, non-invasive GET requests; response bodies are never saved or printed
+- HTML forms that may submit credentials over plain HTTP
+- A small fixed list of common exposed paths
 
-## Safety model
+### Safe-active checks (opt-in)
+- HTTP OPTIONS method advertisement
+- CORS behavior using a harmless controlled Origin value
+- A small fixed set of directory-index checks
+- No exploit payloads, authentication attempts, brute force, state-changing requests, destructive tests or denial-of-service behavior
 
-Batman Bug Hunter is designed for **systems you own or are explicitly authorized to assess**.
+These checks are indicators, not proof of exploitability. They do not constitute a full penetration test and do not currently test SQL injection, XSS, authentication bypass, business logic or authenticated application paths.
 
-- Every scan requires the operator to confirm authorization in the CLI or dashboard.
+## Authorization and safety
+
+Use only systems you own or are explicitly authorized to assess, within written scope.
+- Every scan requires an authorization confirmation.
 - Only HTTP and HTTPS targets are accepted.
-- Loopback, private, link-local, multicast, reserved and otherwise non-public IP destinations are blocked by default.
-- Redirects are followed manually and every destination is revalidated.
-- Requests are sequential, rate-limited, have short timeouts and a strict request cap.
-- No exploit payloads, brute force, authentication bypass, destructive requests, crawling, or denial-of-service tests are performed.
-- Findings are indicators for manual validation, not proof of exploitability.
-
-For an intentionally vulnerable practice target, use a local lab you control. Private targets require the explicit CLI flag \`--allow-private\` or the dashboard setting. Do not expose a lab service to the public internet.
+- Private, loopback, link-local, multicast, reserved and otherwise non-public destinations are blocked by default.
+- The private-lab option is only for isolated systems you control.
+- Redirects are followed manually and each destination is revalidated.
+- Requests are sequential, rate-limited, bounded and use short timeouts.
+- The dashboard binds to 127.0.0.1; do not expose it to an untrusted network.
+- Findings require manual validation.
 
 ## Requirements
-
 - Python 3.10+
 - pip
-- Kali Linux, Linux, macOS or Windows
 
-## Install
-
-\`\`\`bash
+## Kali / Linux / macOS install
+```bash
 cd 02-batman-bug-hunter
 python3 -m venv .venv
-source .venv/bin/activate       # Windows: .venv\\Scripts\\activate
+source .venv/bin/activate
 pip install -r requirements.txt
-\`\`\`
-
-## Run the CLI
-
-\`\`\`bash
-python -m batman_hunter.cli https://your-authorized-domain.example --i-am-authorized
-\`\`\`
-
-For a private lab target that you control:
-
-\`\`\`bash
-python -m batman_hunter.cli http://127.0.0.1:8000 --i-am-authorized --allow-private
-\`\`\`
-
-Save JSON output:
-
-\`\`\`bash
-python -m batman_hunter.cli https://your-authorized-domain.example --i-am-authorized --json report.json
-\`\`\`
-
-## Run the browser dashboard
-
-\`\`\`bash
 python -m batman_hunter.web
-\`\`\`
+```
+Open http://127.0.0.1:5000.
 
-Open http://127.0.0.1:5000. Keep the dashboard bound to localhost. Do not expose it to an untrusted network.
+CLI passive scan:
+```bash
+python -m batman_hunter.cli http://127.0.0.1:3000 --i-am-authorized --allow-private
+```
 
-## Finding severity
+CLI safe-active scan with JSON report:
+```bash
+python -m batman_hunter.cli http://127.0.0.1:3000 --i-am-authorized --allow-private --active --json report.json
+```
 
-- **High**: a meaningful security weakness with potentially serious impact (for example, a credential form submitted over HTTP).
-- **Medium**: a missing or weak security control that should be reviewed.
-- **Low**: information disclosure or hardening opportunity.
-- **Info**: observations that are not necessarily vulnerabilities.
+## Windows install
 
-Severity is intentionally conservative. Missing headers alone do not prove a vulnerability.
-
-## Project structure
-
-\`\`\`text
-02-batman-bug-hunter/
-├── batman_hunter/
-│   ├── __init__.py
-│   ├── core.py
-│   ├── cli.py
-│   └── web.py
-├── templates/
-│   └── index.html
-├── static/
-│   └── style.css
-├── requirements.txt
-└── README.md
-\`\`\`
+Open PowerShell in this folder:
+```powershell
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m batman_hunter.web
+```
+If script activation is blocked, use:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+.\.venv\Scripts\Activate.ps1
+```
+Or skip activation and run the interpreter directly:
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m batman_hunter.web
+```
+Then open http://127.0.0.1:5000. Windows quick-start launchers are included: `start_windows.bat` and `start_windows.ps1`.
 
 ## Limitations
 
-This is a learning and portfolio project, not a replacement for a professional DAST platform or a penetration test. It does not test SQL injection or XSS by sending attack strings. It does not authenticate, crawl an application, inspect application logic, or prove that a finding is exploitable. Always validate results manually and document scope, evidence and impact.
+This is a learning and portfolio tool, not a replacement for a professional DAST platform or manual penetration test. It does not crawl, authenticate, exploit vulnerabilities, test SQL injection or XSS payloads, bypass authentication, or inspect application business logic. Expand deeper testing only in a controlled lab with documented scope.
 
-## Suggested portfolio evidence
+## Portfolio evidence
 
-1. Run against a local test application you control.
-2. Save the JSON report (remove secrets and personal data before publishing).
-3. Write a short assessment summary: scope, date, checks performed, findings, limitations and remediation.
-4. Include screenshots of the CLI and dashboard with a deliberately vulnerable lab—not a third-party target.
+Document the lab target, authorization, date, mode, checks performed, findings, evidence, impact, remediation and limitations. Use an intentionally vulnerable local application such as OWASP Juice Shop running on your own machine.
 
 ## License
-
 MIT. See the repository license if one is added.
