@@ -79,10 +79,10 @@ jobs:
                 throw "Installed app exited early with code $($app.ExitCode). STDOUT: $outText STDERR: $errText"
               }
               try {
-                $home = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 3
+                $dashboardResponse = Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 3
                 $crypto = Invoke-WebRequest -Uri "http://127.0.0.1:5000/crypto" -UseBasicParsing -TimeoutSec 3
-                if ($home.StatusCode -eq 200 -and $crypto.StatusCode -eq 200) { $ready = $true; break }
-                $lastFailure = "HTTP status: dashboard=$($home.StatusCode), crypto=$($crypto.StatusCode)"
+                if ($dashboardResponse.StatusCode -eq 200 -and $crypto.StatusCode -eq 200) { $ready = $true; break }
+                $lastFailure = "HTTP status: dashboard=$($dashboardResponse.StatusCode), crypto=$($crypto.StatusCode)"
               } catch {
                 $lastFailure = $_.Exception.Message
                 if ($_.Exception.Response) {
