@@ -74,7 +74,7 @@ def validate_target(url: str, allow_private: bool = False) -> str:
         raise ScanError("The target URL or port is invalid.") from exc
     return urlunparse(parsed._replace(fragment="", netloc=parsed.netloc.lower()))
 
-def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: dict | None = None):
+def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: dict | None = None, _redirects: int = 0):
     """Make a single HTTP request pinned to an address validated immediately before connect.
 
     No proxy environment variables are honored. HTTPS keeps the original hostname
@@ -122,6 +122,16 @@ def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: 
             body = raw.read(256000)
             response = _PinnedResponse(raw.status, raw.headers, body)
             raw.close()
+            if response.is_redirect:
+                location = response.headers.get("Location")
+                if location:
+                    response.close()
+                    if _redirects >= MAX_REDIRECTS:
+                        raise ScanError("Redirect limit reached.")
+                    next_url = urljoin(current, location)
+                    next_method = "GET" if response.status_code in (301, 302, 303) else method
+                    return _request(next_url, allow_private, method=next_method,
+                                    extra_headers=extra_headers, _redirects=_redirects + 1)
             return response, current
         except (urllib3.exceptions.HTTPError, OSError, ssl.SSLError) as exc:
             last_error = exc
