@@ -143,3 +143,180 @@ The Windows installer includes `BatmanBugHunterUpdater.exe` and a Start Menu/Des
 5. Run the Inno Setup installer quietly as the current Windows user.
 
 The updater requires internet access and a published GitHub Release containing both assets. The repository Actions workflow publishes a new latest release after a successful Windows build on `main`. Feature-branch builds do not publish releases. An existing installation must first be upgraded/reinstalled with a setup package that contains the updater; older installations do not gain the updater automatically. The updater is not code-signed, so Windows SmartScreen may display a reputation warning. SHA-256 verifies download integrity against the release checksum but does not establish publisher identity; use the official repository release page.
+
+
+## Detailed Kali Linux — Step-by-Step User Guide
+
+This guide walks beginners through downloading, installing, testing and launching Batman Bug Hunter on Kali Linux.
+
+### 1. Requirements
+
+Before starting, make sure you have:
+
+- Kali Linux (updated)
+- Python 3
+- Git
+- An internet connection
+- At least 2 GB of available storage
+- Basic Linux terminal knowledge
+
+### 2. Update Kali Linux
+
+Open the terminal and run:
+
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+### 3. Install required packages
+
+```bash
+sudo apt install -y git python3 python3-pip python3-venv
+```
+
+### 4. Download Batman Bug Hunter
+
+Clone the official repository:
+
+```bash
+git clone https://github.com/athidotsathu-star/Batmans-projects.git
+```
+
+Enter the project directory:
+
+```bash
+cd Batmans-projects/02-batman-bug-hunter
+```
+
+### 5. Create and activate a Python virtual environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+You should now see `(.venv)` at the beginning of your terminal prompt.
+
+### 6. Install Python dependencies
+
+Upgrade pip:
+
+```bash
+python -m pip install --upgrade pip
+```
+
+Install the project requirements:
+
+```bash
+pip install -r requirements.txt
+```
+
+Wait until the installation finishes.
+
+### 7. Run the automated tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Review the results. If a test fails, do not assume the application is working correctly. Record the complete error output and resolve it before relying on the affected feature.
+
+### 8. Launch Batman Bug Hunter
+
+```bash
+python -m batman_hunter.web
+```
+
+Open your browser and visit:
+
+**http://127.0.0.1:5000**
+
+The application should now be available locally.
+
+### 9. Basic reconnaissance target-policy checks
+
+These commands demonstrate the lab-only restrictions for the network reconnaissance module.
+
+**Test 1 — Localhost**
+
+```bash
+python -c "from batman_hunter.recon import scan_host; print(scan_host('127.0.0.1', [80, 443]))"
+```
+
+**Test 2 — Public IP rejection**
+
+```bash
+python -c "from batman_hunter.recon import scan_host; print(scan_host('8.8.8.8', [53]))"
+```
+
+A public IP should be rejected by the lab-only reconnaissance policy.
+
+**Test 3 — Link-local IP rejection**
+
+```bash
+python -c "from batman_hunter.recon import scan_host; print(scan_host('169.254.1.1', [80]))"
+```
+
+A link-local address should also be rejected.
+
+These are policy checks, not a complete security audit. Run tests only against systems you own or are explicitly authorized to assess.
+
+### 10. Stop the application and exit the environment
+
+To stop the application, press:
+
+```text
+CTRL + C
+```
+
+To leave the Python virtual environment:
+
+```bash
+deactivate
+```
+
+### 11. Update Batman Bug Hunter
+
+From inside the project directory, return to the repository root:
+
+```bash
+cd ..
+```
+
+Pull the latest repository changes:
+
+```bash
+git pull
+```
+
+Return to the project directory:
+
+```bash
+cd 02-batman-bug-hunter
+```
+
+Activate the environment and update dependencies:
+
+```bash
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+Run the automated tests again before launching the application.
+
+### Important security notice
+
+Batman Bug Hunter is intended for authorized security testing and controlled lab environments.
+
+- Only test systems you own or have explicit written permission to assess.
+- Do not scan public IP addresses or third-party systems without authorization.
+- Follow the scope and rules of any bug bounty program.
+- Never attempt to access, modify or disrupt another person's data.
+- A successful installation does not mean every security feature has been independently verified.
+
+**Project repository:** [Batman Bug Hunter on GitHub](https://github.com/athidotsathu-star/Batmans-projects)
+
+**Project folder:** `02-batman-bug-hunter`
+
+**Local application:** http://127.0.0.1:5000
