@@ -2,3 +2,7 @@ requests>=2.32,<3
 Flask>=3.0,<4
 cryptography>=42,<47
 reportlab>=4.0,<5
+gunicorn>=22,<24
+Flask-Limiter>=3.8,<5
+Flask-Cors>=5,<6
+dnspython>=2.6,<3
