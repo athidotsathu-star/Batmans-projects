@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: batman-bug-hunter-api
+    runtime: python
+    plan: starter
+    rootDir: 02-batman-bug-hunter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -k gthread --threads 4 --timeout 90 batman_hunter.hosted_api:APP
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: FRONTEND_ORIGIN
+        value: https://batman-bug-hunter.pages.dev
+      - key: DATABASE_PATH
+        value: /var/data/bbh.sqlite3
+      - key: REDIS_URL
+        sync: false
+    disk:
+      name: bbh-data
+      mountPath: /var/data
+      sizeGB: 1
