@@ -6,7 +6,7 @@ from batman_hunter.core import ScanError, report_json, validate_target, _report
 
 class TargetValidationTests(unittest.TestCase):
     def test_adds_https_when_scheme_missing(self):
-        with patch("batman_hunter.core._is_public_host", return_value=True):
+        with patch("batman_hunter.target_policy.resolve_target", return_value=("93.184.216.34",)):
             self.assertEqual(validate_target("example.com"), "https://example.com")
 
     def test_rejects_non_http_scheme(self):
