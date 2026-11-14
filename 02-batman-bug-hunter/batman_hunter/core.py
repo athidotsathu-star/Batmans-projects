@@ -67,11 +67,11 @@ def validate_target(url: str, allow_private: bool = False) -> str:
             raise ScanError("Non-standard ports require private-lab mode.")
         host = parsed.hostname.rstrip(".").lower()
         resolve_target(host, allow_private=allow_private)
+    except TargetPolicyError as exc:
+        raise ScanError(str(exc)) from exc
     except (ValueError, UnicodeError) as exc:
         if isinstance(exc, ScanError): raise
         raise ScanError("The target URL or port is invalid.") from exc
-    except TargetPolicyError as exc:
-        raise ScanError(str(exc)) from exc
     return urlunparse(parsed._replace(fragment="", netloc=parsed.netloc.lower()))
 
 def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: dict | None = None):
