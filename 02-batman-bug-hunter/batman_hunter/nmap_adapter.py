@@ -1,12 +1,13 @@
 """Optional Nmap XML integration with strict single-host and port bounds."""
 from __future__ import annotations
 import ipaddress, shutil, subprocess, xml.etree.ElementTree as ET
+from .target_policy import is_lab_ip
 
 def run_nmap(host: str, ports: str="22,80,443,445,3389,8080", timeout: int=75) -> dict:
     try: ip=ipaddress.ip_address(host.strip())
     except ValueError: raise ValueError("Nmap integration accepts a literal IP address only.")
-    if not (ip.is_private or ip.is_loopback or ip.is_link_local):
-        raise ValueError("Nmap integration is restricted to private, loopback or link-local lab addresses.")
+    if not is_lab_ip(ip):
+        raise ValueError("Nmap integration is restricted to RFC1918, loopback and IPv6 ULA lab addresses. Public, link-local and reserved destinations are blocked.")
     raw=[x.strip() for x in ports.split(",") if x.strip()]
     if not raw or len(raw)>64: raise ValueError("Choose between 1 and 64 TCP ports.")
     values=[]
