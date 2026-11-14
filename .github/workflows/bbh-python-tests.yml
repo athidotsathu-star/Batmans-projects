@@ -1,0 +1,32 @@
+name: Batman Bug Hunter Python tests
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "02-batman-bug-hunter/**"
+      - "render.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "02-batman-bug-hunter/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 02-batman-bug-hunter
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: 02-batman-bug-hunter/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run unit and hosted API tests
+        run: python -m unittest discover -s tests -v
