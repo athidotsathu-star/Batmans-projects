@@ -177,15 +177,19 @@ def targets():
 def scan():
     data=request.get_json(silent=True) or {}
     target=str(data.get("target","")).strip()
-    parsed=urlparse(target if "://" in target else "https://"+target)
+    try:
+        parsed=urlparse(target if "://" in target else "https://"+target)
+        port=parsed.port
+    except ValueError:
+        return fail("Invalid target URL or port.",400)
     host=(parsed.hostname or "").lower().rstrip(".")
-    if parsed.scheme not in ("https",) or not host or parsed.port not in (None,443):
+    if parsed.scheme != "https" or not host or port not in (None,443):
         return fail("Hosted scans accept HTTPS on the standard port only.",400)
     row=db().execute("SELECT 1 FROM targets WHERE user_id=? AND hostname=?",(g.user["id"],host)).fetchone()
     if not row:
         return fail("Verify ownership of this domain before scanning.",403)
     try:
-        result=scan_target(target,allow_private=False,active=False)
+        result=scan_target(target,allow_private=False,active=False,allowed_hosts={host})
     except (ScanError,ValueError) as exc:
         return fail(str(exc),422)
     import json
