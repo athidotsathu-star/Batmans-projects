@@ -112,7 +112,8 @@ def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: 
             if parsed.scheme == "https":
                 pool = urllib3.HTTPSConnectionPool(
                     address, port=port, timeout=TIMEOUT, maxsize=1, block=True,
-                    cert_reqs=ssl.CERT_REQUIRED, assert_hostname=host, server_hostname=host,
+                    cert_reqs=ssl.CERT_REQUIRED, ca_certs=requests.certs.where(),
+                    assert_hostname=host, server_hostname=host,
                 )
             else:
                 pool = urllib3.HTTPConnectionPool(address, port=port, timeout=TIMEOUT, maxsize=1, block=True)
