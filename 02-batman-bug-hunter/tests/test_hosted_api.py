@@ -2,6 +2,7 @@
 import os
 import tempfile
 import unittest
+import uuid
 
 _TEMP = tempfile.TemporaryDirectory()
 os.environ["DATABASE_PATH"] = os.path.join(_TEMP.name, "test.sqlite3")
@@ -13,7 +14,7 @@ class HostedApiTests(unittest.TestCase):
     def setUp(self):
         APP.config.update(TESTING=True)
         self.client = APP.test_client()
-        self.email = "test-user@example.invalid"
+        self.email = "test-" + uuid.uuid4().hex + "@example.invalid"
         self.password = "a-long-test-password-123"
 
     def register_and_login(self):
