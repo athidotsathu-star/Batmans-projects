@@ -74,7 +74,7 @@ def validate_target(url: str, allow_private: bool = False) -> str:
         raise ScanError("The target URL or port is invalid.") from exc
     return urlunparse(parsed._replace(fragment="", netloc=parsed.netloc.lower()))
 
-def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: dict | None = None, _redirects: int = 0):
+def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: dict | None = None, _redirects: int = 0, allowed_hosts: set[str] | None = None):
     """Make a single HTTP request pinned to an address validated immediately before connect.
 
     No proxy environment variables are honored. HTTPS keeps the original hostname
@@ -129,9 +129,12 @@ def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: 
                     if _redirects >= MAX_REDIRECTS:
                         raise ScanError("Redirect limit reached.")
                     next_url = urljoin(current, location)
+                    next_host = (urlparse(next_url).hostname or "").lower().rstrip(".")
+                    if allowed_hosts is not None and next_host not in allowed_hosts:
+                        raise ScanError("Redirect leaves the verified target scope and was blocked.")
                     next_method = "GET" if response.status_code in (301, 302, 303) else method
                     return _request(next_url, allow_private, method=next_method,
-                                    extra_headers=extra_headers, _redirects=_redirects + 1)
+                                    extra_headers=extra_headers, _redirects=_redirects + 1, allowed_hosts=allowed_hosts)
             return response, current
         except (urllib3.exceptions.HTTPError, OSError, ssl.SSLError) as exc:
             last_error = exc
@@ -209,11 +212,11 @@ def _safe_active_checks(base_url: str, allow_private: bool, findings: list, obse
             continue
     return request_count
 
-def scan_target(url: str, allow_private: bool = False, active: bool = False) -> dict:
+def scan_target(url: str, allow_private: bool = False, active: bool = False, allowed_hosts: set[str] | None = None) -> dict:
     target = validate_target(url, allow_private)
     findings, observations, request_count = [], [], 0
     try:
-        response, final_url = _request(target, allow_private)
+        response, final_url = _request(target, allow_private, allowed_hosts=allowed_hosts)
         request_count += 1
     except requests.exceptions.SSLError as exc:
         _add(findings, "TLS certificate validation failed", "High", "TLS", str(exc)[:240],
@@ -287,7 +290,7 @@ def scan_target(url: str, allow_private: bool = False, active: bool = False) -> 
             break
         time.sleep(DELAY_SECONDS)
         try:
-            probe, _ = _request(urljoin(final_url.rstrip("/") + "/", path.lstrip("/")), allow_private)
+            probe, _ = _request(urljoin(final_url.rstrip("/") + "/", path.lstrip("/")), allow_private, allowed_hosts=allowed_hosts)
             request_count += 1
             if probe is None:
                 continue
