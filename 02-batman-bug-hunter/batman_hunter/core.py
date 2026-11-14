@@ -23,56 +23,111 @@ class Finding:
     evidence: str
     recommendation: str
 
-def _is_public_host(host: str) -> bool:
-    try:
-        addresses = {ipaddress.ip_address(item[4][0]) for item in socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)}
-    except (socket.gaierror, UnicodeError):
-        raise ScanError("The hostname could not be resolved.")
-    if not addresses:
-        raise ScanError("The hostname did not resolve to an IP address.")
-    return all(ip.is_global for ip in addresses)
+class _Cookie:
+    def __init__(self, name, morsel):
+        self.name = name
+        self.secure = bool(morsel["secure"])
+        self._rest = {"HttpOnly": bool(morsel["httponly"]), "SameSite": morsel["samesite"] or None}
+
+class _PinnedResponse:
+    def __init__(self, status, headers, body):
+        from requests.structures import CaseInsensitiveDict
+        from http.cookies import SimpleCookie
+        from io import BytesIO
+        self.status_code = status
+        self.headers = CaseInsensitiveDict(dict(headers))
+        self.raw = BytesIO(body)
+        parsed = SimpleCookie()
+        for value in (headers.getlist("Set-Cookie") if hasattr(headers, "getlist") else []):
+            try: parsed.load(value)
+            except Exception: pass
+        self.cookies = [_Cookie(name, morsel) for name, morsel in parsed.items()]
+        self.is_redirect = status in (301, 302, 303, 307, 308)
+        self.is_permanent_redirect = status in (301, 308)
+    def close(self):
+        self.raw.close()
 
 def validate_target(url: str, allow_private: bool = False) -> str:
+    from .target_policy import TargetPolicyError, resolve_target
     raw = (url or "").strip()
     if not raw:
         raise ScanError("Enter a target URL.")
     if "://" not in raw:
         raw = "https://" + raw
-    parsed = urlparse(raw)
-    if parsed.scheme not in ("http", "https"):
-        raise ScanError("Only http:// and https:// targets are supported.")
-    if not parsed.hostname or parsed.username or parsed.password:
-        raise ScanError("Provide a valid hostname; credentials in URLs are not accepted.")
-    if parsed.port not in (None, 80, 443) and not allow_private:
-        raise ScanError("Non-standard ports require the private-lab option.")
-    host = parsed.hostname.rstrip(".").lower()
-    if not allow_private and not _is_public_host(host):
-        raise ScanError("Private or non-public IP destinations are blocked. Use the private-lab option only for a system you control.")
-    if allow_private:
-        try:
-            socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))
-        except socket.gaierror:
-            raise ScanError("The hostname could not be resolved.")
+    try:
+        parsed = urlparse(raw)
+        if parsed.scheme not in ("http", "https"):
+            raise ScanError("Only http:// and https:// targets are supported.")
+        if not parsed.hostname or parsed.username or parsed.password:
+            raise ScanError("Provide a valid hostname; credentials in URLs are not accepted.")
+        port = parsed.port
+        if port is not None and not 1 <= port <= 65535:
+            raise ScanError("The target port is invalid.")
+        if port not in (None, 80, 443) and not allow_private:
+            raise ScanError("Non-standard ports require private-lab mode.")
+        host = parsed.hostname.rstrip(".").lower()
+        resolve_target(host, allow_private=allow_private)
+    except (ValueError, UnicodeError) as exc:
+        if isinstance(exc, ScanError): raise
+        raise ScanError("The target URL or port is invalid.") from exc
+    except TargetPolicyError as exc:
+        raise ScanError(str(exc)) from exc
     return urlunparse(parsed._replace(fragment="", netloc=parsed.netloc.lower()))
 
 def _request(url: str, allow_private: bool, method: str = "GET", extra_headers: dict | None = None):
+    """Make a single HTTP request pinned to an address validated immediately before connect.
+
+    No proxy environment variables are honored. HTTPS keeps the original hostname
+    for SNI and certificate verification while the TCP socket connects to the
+    validated numeric IP. Redirects are returned to the caller for revalidation.
+    """
+    import ssl
+    import urllib3
+    from .target_policy import TargetPolicyError, resolve_target
+
     current = validate_target(url, allow_private)
+    parsed = urlparse(current)
+    host = parsed.hostname
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        addresses = resolve_target(host, allow_private=allow_private)
+    except TargetPolicyError as exc:
+        raise ScanError(str(exc)) from exc
+
     headers = {"User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml,*/*;q=0.5"}
     if extra_headers:
         headers.update(extra_headers)
-    for _ in range(MAX_REDIRECTS + 1):
-        current = validate_target(current, allow_private)
-        response = requests.request(method, current, headers=headers, timeout=TIMEOUT,
-                                    allow_redirects=False, verify=True, stream=True)
-        if response.is_redirect or response.is_permanent_redirect:
-            location = response.headers.get("Location")
-            response.close()
-            if not location:
-                return None, current
-            current = urljoin(current, location)
-            continue
-        return response, current
-    raise ScanError("Redirect limit reached.")
+    host_header = f"[{host}]" if ":" in host else host
+    if port not in (80, 443):
+        host_header += f":{port}"
+    headers["Host"] = host_header
+    path = parsed.path or "/"
+    if parsed.query:
+        path += "?" + parsed.query
+
+    last_error = None
+    for address in addresses:
+        pool = None
+        try:
+            if parsed.scheme == "https":
+                pool = urllib3.HTTPSConnectionPool(
+                    address, port=port, timeout=TIMEOUT, maxsize=1, block=True,
+                    cert_reqs=ssl.CERT_REQUIRED, assert_hostname=host, server_hostname=host,
+                )
+            else:
+                pool = urllib3.HTTPConnectionPool(address, port=port, timeout=TIMEOUT, maxsize=1, block=True)
+            raw = pool.urlopen(method.upper(), path, headers=headers, redirect=False,
+                               retries=False, preload_content=False)
+            body = raw.read(256000)
+            response = _PinnedResponse(raw.status, raw.headers, body)
+            raw.close()
+            return response, current
+        except (urllib3.exceptions.HTTPError, OSError, ssl.SSLError) as exc:
+            last_error = exc
+        finally:
+            if pool is not None:
+                pool.close()
+    raise ScanError(f"Connection failed: {type(last_error).__name__ if last_error else 'No permitted address'}")
 
 def _add(findings, title, severity, category, evidence, recommendation):
     findings.append(Finding(title, severity, category, evidence, recommendation))
