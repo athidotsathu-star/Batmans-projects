@@ -5,7 +5,7 @@ services:
     plan: starter
     rootDir: 02-batman-bug-hunter
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -w 2 -k gthread --threads 4 --timeout 90 batman_hunter.hosted_api:APP
+    startCommand: gunicorn -w 1 -k gthread --threads 8 --timeout 90 batman_hunter.hosted_api:APP
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
